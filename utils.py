@@ -72,7 +72,7 @@ def create_node_nbrs(forward):
 		node_nbrs[forward[e]] = list(start_nodes[v])
 	return node_nbrs
 
-def load_data(args, less=True, sample=1000, fname=TRAIN_TRIP_DATA_PICKLED_WITH_TIMESTAMPS):
+def load_data(args, less=False, sample=1000, fname=TRAIN_TRIP_DATA_PICKLED_WITH_TIMESTAMPS):
 	print("Loading map matched trajectories")
 	f = open(fname, "rb")
 	data = pickle.load(f)
@@ -93,7 +93,7 @@ def load_data(args, less=True, sample=1000, fname=TRAIN_TRIP_DATA_PICKLED_WITH_T
 	data = relabel_trips(data, forward)
 	return data, forward
 
-def load_test_data(args, forward, less=True, sample = 100, fname = TEST_TRIP_DATA_PICKLED_WITH_TIMESTAMPS):
+def load_test_data(args, forward, less=False, sample = 100, fname = TEST_TRIP_DATA_PICKLED_WITH_TIMESTAMPS):
 	print('Loading test/val data')
 	f = open(fname, "rb")
 	data = pickle.load(f)

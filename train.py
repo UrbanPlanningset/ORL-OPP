@@ -87,7 +87,7 @@ def gen_paths_no_hierarchy_helper(all_paths):
 	model_node_embeddings.eval()
 	pending = OrderedDict({i:None for i in range(len(all_paths))})
 	with torch.no_grad():
-		for _ in tqdm(range(MAX_ITERS), desc = "generating trips in lockstep", dynamic_ncols=True):
+		for _ in tqdm(range(MAX_ITERS), desc="generating trips in lockstep", dynamic_ncols=True):
 			true_paths = [all_paths[i][1] for i in pending]
 
 			for i in true_paths:
@@ -97,31 +97,33 @@ def gen_paths_no_hierarchy_helper(all_paths):
 				path = [start]
 				current = start
 				visited = set()
-				while current != end and current not in visited:
+				while current != end and current not in visited and t <= 300:
 					t += 1
 					visited.add(current)
-					best_next = None
-					best_q = float('-inf')
-					for next_node in node_nbrs[current]:
-						if next_node == -1:
-							print(f"⚠️ 发现无效节点 {current}，终止路径搜索")
-							break
-						if next_node in visited:
-							continue
-						q_val = model_node_embeddings(int(next_node), return_vec=True)
-						if q_val[0].mean().item() > best_q:
-							best_q = q_val[0].mean().item()
-							best_next = next_node
-					if best_next is None:
+					neighbors = node_nbrs[current]
+
+					valid_neighbors = [next_node for next_node in neighbors if next_node != -1]
+					if not valid_neighbors:
 						break
+
+					q_values = []
+					for next_node in valid_neighbors:
+						q_val = model_node_embeddings(int(next_node), return_vec=True)
+						q_values.append(q_val[0].mean().item())
+
+					best_q = max(q_values)
+					best_next = valid_neighbors[q_values.index(best_q)]
+
 					path.append(best_next)
 					current = best_next
 
 				if current != end:
+					model_node_embeddings.train()
 					return None, float('inf')
+				else:
+					model_node_embeddings.train()
+					return path, _
 
-				model_node_embeddings.train()
-				return path, _
 
 def evaluate_no_hierarchy(data, num = 1000, with_correction = False, without_correction = True, with_dijkstra = False):
 	global map_node_osm_to_coords, map_edge_id_to_u_v, backward 
@@ -511,40 +513,8 @@ if __name__ == "__main__":
 	for epoch in tqdm(range(args.epochs), desc = "Epoch", unit="epochs", dynamic_ncols=True):
 		random.shuffle(train_data)
 		model_node_embeddings.train()
-		# 速度处理，待定
-		# for batch_num,k in tqdm(list(enumerate((range(0, len(train_data), BATCH)))), desc = "Batch", unit="steps" ,leave = True, dynamic_ncols=True):
-		# 	partial = random.sample(train_data, BATCH) # with replacement
-		# 	valid_trajs = len(partial)
-		#
-		# 	# 统计每条边的总时间 & 计数
-		# 	edge_times = collections.defaultdict(float)
-		# 	edge_counts = collections.defaultdict(int)
-		#
-		# 	# 遍历每条轨迹
-		# 	for traj in partial:
-		# 		nodes = traj[1]
-		# 		total_time = traj[2][-1]-traj[2][0]
-		#
-		# 		num_edges = len(nodes) - 1  # 计算边数
-		# 		avg_edge_time = total_time / num_edges  # 假设每段路程时间均等
-		#
-		# 		for i in range(len(nodes) - 1):
-		# 			u, v = nodes[i], nodes[i + 1]
-		# 			edge_times[(u, v)] += avg_edge_time
-		# 			edge_counts[(u, v)] += 1
 
-		# # 创建新的 node_nbrs（替换邻居为速度）
-		# updated_node_nbrs = {}
-		#
-		# for node, neighbors in node_nbrs.items():
-		# 	updated_neighbors = [
-		# 		edge_times.get((node, neighbor), neighbor)  # 若有速度替换，否则保持原样
-		# 		for neighbor in neighbors
-		# 	]
-		# 	updated_node_nbrs[node] = updated_neighbors
-		# time_nbrs = node_nbrs
-
-		num_iterations = 1
+		num_iterations = 50
 		for batch_num,k in tqdm(list(enumerate((range(0, len(train_data), BATCH)))),
 								desc = "Batch", unit="steps" ,leave = True, dynamic_ncols=True):
 			partial = random.sample(train_data, BATCH)
@@ -599,39 +569,6 @@ if __name__ == "__main__":
 
 				# print(f"Iteration {iteration}: Loss = {loss.item():.4f}")
 
-			# next_node = [nbr for _,t,_ in partial for i in range(len(t)-1) for nbr in node_nbrs[t[i]]]
-			# current = [t[i] for _,t,_ in partial for i in range(len(t)-1) for _ in node_nbrs[t[i]]]
-			# dests = [t[-1] for _,t,_ in partial for i in range(len(t)-1) for _ in node_nbrs[t[i]]]
-			# traffic = None
-			# if args.traffic:
-			# 	traffic = [forward_interval_map[(s)] for _,t,(s,_) in partial for i in range(len(t)-1) for nbr in node_nbrs[t[i]]]
-
-			# rew= [0] * len(current)
-			#
-			# s, target = model(current, dests, next_node, rew, traffic)
-
-			# num_preds = sum(len(t) -1 for _,t,_ in partial)
-			# true_nbr_class = torch.LongTensor([(node_nbrs[t[i]].index(t[i+1])) for _,t,_ in partial for i in range(len(t)-1)]).to(device)
-			# loss = loss_function_cross_entropy(s, target)
-			# preds += num_preds
-			# preds_in_this_iteration = num_preds
-			# total_loss += loss.item()
-			# total_trajs += valid_trajs
-			# if (valid_trajs > 0):
-			# 	if ((batch_num+1)%PRINT_FREQ==0):
-			# 		tqdm.write("Epoch:{}, Batch:{}, loss({}) - per trip: {}, per pred: {}".
-			# 			format(epoch, batch_num+1, args.loss, round(total_loss/total_trajs, 2), round(total_loss/preds, 3)))
-			# 		loss_curve.append(total_loss/total_trajs)
-			# 		total_loss = 0
-			# 		total_trajs = 0
-			# 		preds = 0
-			# 		correct = 0
-			# 		prob_sum = 0
-			# 	loss /= valid_trajs
-			# 	optimiser.zero_grad()
-			# 	loss.backward()
-			# 	optimiser.step()
-			# 	torch.cuda.empty_cache()
 		if (epoch+1)%args.eval_frequency == 0:
 			# save_model()
 			# cprint('Model saved', 'yellow', attrs=['underline'])

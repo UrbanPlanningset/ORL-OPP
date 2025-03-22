@@ -54,8 +54,7 @@ class Model(nn.Module):
 
         self.confidence_model = MLP(input_dim=input_size, output_dim=1, num_layers=args.num_layers, hidden_dim=args.hidden_size)
 
-        # 将 _build_model 的逻辑整合到类中
-        self.build_model = None  # 延迟初始化
+        self.build_model = None
 
     def _build_model(self, embed_dim):
         return nn.Sequential(
@@ -92,11 +91,9 @@ class Model(nn.Module):
         else:
             embeddings = self.embeddings.weight
 
-        # 添加一个额外的行
         embeddings = torch.cat((torch.zeros(embeddings.shape[1]).reshape(1, -1).to(self.device), embeddings), dim=0)
 
-        # 拼接左右节点的嵌入
-        vec_left = embeddings[1 + source_left].unsqueeze(0)  # 确保是二维张量
-        vec_right = embeddings[1 + source_right].unsqueeze(0)  # 确保是二维张量
-        vec = torch.cat((vec_left, vec_right), dim=1)  # 沿着特征维度拼接
+        vec_left = embeddings[1 + source_left].unsqueeze(0)
+        vec_right = embeddings[1 + source_right].unsqueeze(0)
+        vec = torch.cat((vec_left, vec_right), dim=1)
         return vec
