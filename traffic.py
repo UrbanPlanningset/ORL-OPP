@@ -10,6 +10,7 @@ from sklearn.decomposition import PCA
 import torch
 from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
+import pandas as pd
 from termcolor import colored, cprint
 
 def find_interval_1(end_time):
@@ -29,6 +30,7 @@ node_df = gpd.read_file(NODE_DATA)
 map_node_osm_to_coords = { node_df['osmid'][i]: node_df.loc[i][['y', 'x']].to_numpy() for i in range(node_df.shape[0])}
 map_edge_id_to_u_v = edge_df[['u', 'v']].to_numpy()
 num_edges = map_edge_id_to_u_v.shape[0]
+speed_df = pd.read_csv("my_dict.csv")
 
 haversines = {}
 for e in tqdm(range(num_edges)):

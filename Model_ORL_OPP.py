@@ -65,19 +65,6 @@ class Model(nn.Module):
             nn.Linear(64, 1)
         )
 
-    def forward(self, input, return_vec=False):
-        if return_vec:
-            # 如果 return_vec 为 True，直接返回 vec
-            return self._get_vec(input)
-        else:
-            # 否则，返回 self.build_model(vec)
-            if self.build_model is None:
-                # 动态初始化 build_model
-                embed_dim = input.shape[-1]  # 获取 input 的最后一个维度
-                self.build_model = self._build_model(embed_dim).to(self.device)
-            return self.build_model(input)
-
-
     def _get_vec(self, source):
         device = self.device
         edge_to_node_mapping = self.mapping
@@ -97,3 +84,39 @@ class Model(nn.Module):
         vec_right = embeddings[1 + source_right].unsqueeze(0)
         vec = torch.cat((vec_left, vec_right), dim=1)
         return vec
+
+    def forward(self, input, return_vec=False):
+        if return_vec:
+            return self._get_vec(input)
+        else:
+
+            if self.build_model is None:
+                embed_dim = input.shape[-1]  #
+                self.build_model = self._build_model(embed_dim).to(self.device)
+            return self.build_model(input)
+
+
+class PrioritizedReplayBuffer:
+    def __init__(self, capacity, alpha=0.6):
+        self.capacity = capacity
+        self.alpha = alpha
+        self.buffer = []
+        self.priorities = []
+
+    def add(self, experience, td_error):
+        self.buffer.append(experience)
+        self.priorities.append((abs(td_error) + 1e-6) ** self.alpha)
+        if len(self.buffer) > self.capacity:
+            self.buffer.pop(0)
+            self.priorities.pop(0)
+
+    def sample(self, batch_size):
+        priorities = np.array(self.priorities)
+        probs = priorities / priorities.sum()
+        indices = np.random.choice(len(self.buffer), batch_size, p=probs)
+        samples = [self.buffer[i] for i in indices]
+        return samples, indices
+
+    def update_priorities(self, indices, new_td_errors):
+        for idx, td in zip(indices, new_td_errors):
+            self.priorities[idx] = (abs(td) + 1e-6) ** self.alpha

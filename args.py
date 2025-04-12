@@ -34,7 +34,7 @@ def make_args():
 	parser.add_argument("-wait", type=int, default=0, dest = "wait", help="wait for these many epochs before evaluating")
 	parser.add_argument("-eval_frequency", type=int, default=5, dest = "eval_frequency", help="evaluate afetr every these many epochs")
 	
-	parser.add_argument("-epochs", type=int, default=50, dest = "epochs", help="number of epochs")
+	parser.add_argument("-epochs", type=int, default=1, dest = "epochs", help="number of epochs")
 	parser.add_argument("-gpu_index", type=int, default=0, dest = "gpu_index", help="which gpu")
 	parser.add_argument("-batch_size", type=int, default=32, dest = "batch_size", help="Stochastic Gradient Descent mei batch ka size")
 	parser.add_argument("-lr", type=float, default=0.001, dest = "lr", help="Learning Rate")
